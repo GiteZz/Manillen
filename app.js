@@ -40,6 +40,8 @@ var rounds = 0;
 var wScore = 0;
 var zScore = 0;
 
+var plays = [];
+
 io.sockets.on('connection',function(socket){
 	console.log('socket connection!');
 	var player = new Array();
@@ -59,7 +61,7 @@ io.sockets.on('connection',function(socket){
 		playInit++;
 		
 		if(avIDs.length == 0 && playInit==4){
-			sendRandom();
+			
 			startPlayer = 0;
 			startGame();
 		}
@@ -81,14 +83,16 @@ io.sockets.on('connection',function(socket){
 	socket.on('aTroef',function(data){
 		console.log('new troef chosen' + data);
 		troefBool = true;
-		troef = PLAYER_LIST[currentPlayer][1][data].charAt(0);
+		troef = PLAYER_LIST[orStarterPlayer][1][data].charAt(0);
 		console.log(troef);
 		
 		for(var i in SOCKET_LIST){
 			SOCKET_LIST[i].emit('eTroef',troef);
 		}
+		currentPlayer = orStarterPlayer + 1;
+		startPlayer = orStarterPlayer + 1;
+		orStarterPlayer++;
 		
-		currentPlayer++;
 		play();
 	});
 	
@@ -100,16 +104,16 @@ io.sockets.on('connection',function(socket){
 			SOCKET_LIST[i].emit('pCard',cur_car);
 		}
 		
-		if(current_card.length != 4){
+		if(current_card.length !== 4){
+			console.log('plays not equal to 4, next player');
 			currentPlayer = (currentPlayer+1)%4;
 			play();
-			console.log(data);
 		}else{
+			console.log('plays equal to 4, determine score');
 			rounds++;
 			var troef_loc = [];
 			var winner = 0;
 			var aTroef = 0;
-			console.log('determine score');
 			for(var i in current_card){
 				if(current_card[i].charAt(0) === troef)troef_loc.push(i);
 			}
@@ -148,23 +152,47 @@ io.sockets.on('connection',function(socket){
 				}
 			}
 			
-			current_card = [];
+			
 			setTimeout(function(){
 				for(var i in SOCKET_LIST){
 					SOCKET_LIST[i].emit('clearPlayCards');
 				}
 			},1000);
-			console.log('winner is: ' + winner.toString());
 			
-			currentPlayer = (startPlayer + 1 + winner)%4;
+			
+			
+			console.log('=======> winner: ' + winner);
+			console.log('=======> startPlayer: ' + startPlayer);
+			
+			var som = parseInt(startPlayer) + parseInt(winner);
+			
+			console.log('=======> som: ' + som);
+			
+			currentPlayer = som%4;
+			console.log('=======> currentPlayer: ' + currentPlayer);
+
 			startPlayer = currentPlayer;
+			console.log('=======> startPlayer: ' + startPlayer);
 			
 			if(startPlayer == 0 || startPlayer == 2){
-				wiederKaarten
+				for(var i in current_card){
+					wiederKaarten.push(current_card[i]);
+				}
 			}
+			
+			if(startPlayer == 1 || startPlayer == 3){
+				for(var i in current_card){
+					ziederKaarten.push(current_card[i]);
+				}
+			}
+			
+			current_card = [];
+			
 			if(rounds !== 8){
+				console.log('rounds not equal to 8');
 				play();
 			}else{
+				console.log('rounds equal to 8');
 				for(var i in wiederKaarten){
 					var cs = cardList.indexOf(wiederKaarten[i].slice(1)) - 2;
 					if(cs > 0)wScore += cs;
@@ -204,6 +232,10 @@ function sendRandom(){
 	shuffle(cards);
 	shuffle(cards);
 	shuffle(cards);
+	shuffle(cards);
+	shuffle(cards);
+	shuffle(cards);
+	shuffle(cards);
 	
 	for(var i = 0; i< 4; i++){
 		var c = cards.slice(i*8,(i+1)*8);
@@ -238,18 +270,18 @@ setInterval(function(){
 */
 
 function startGame(){
-	currentPlayer = startPlayer;
-	for(var i = 0; i < 4; i++){
-		SOCKET_LIST[PLAYER_LIST[currentPlayer][0]].emit('gameStarted');
+	for(var i in SOCKET_LIST){
+		SOCKET_LIST[i].emit('gameStarted');
 	}
+	sendRandom();
 
 	console.log("game_started!");
 
 	SOCKET_LIST[PLAYER_LIST[orStarterPlayer][0]].emit('qTroef');
 	currentPlayer = orStarterPlayer;
-	orStarterPlayer++;
 }
 
 function play(){
+	console.log('play command issued, with currentplayer:  ' + currentPlayer);
 	SOCKET_LIST[PLAYER_LIST[currentPlayer][0]].emit('play');
 }

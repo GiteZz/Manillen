@@ -95,10 +95,10 @@ $(function(){
 	});
 	
 	socket.on('sendCards',function(data){
-		console.log('recieving cards');
 		for(var i in data){
 			cards.push(data[i]);
 		}
+		console.log('recieving cards' + cards);
 		addCards();
 	});
 	
@@ -228,12 +228,13 @@ $(function(){
 			troefBool = false;
 		}
 		
-		if(playBool){
-			console.log('sending card');
-		
+		if(playBool){		
 			var index = parseInt(this.id.charAt(this.id.length-1));
-			
+			console.log('sending card with index: ' + index);
+			console.log('current cards:  ' + cards);
 			if(checkCard(cards[index])){
+			
+				cards[index] = "N1";
 				socket.emit('aPlay', index);
 				$("#your_turn").css({'visibility':'hidden'});
 				playBool = false;
@@ -255,6 +256,7 @@ $(function(){
 	});
 	
 	function checkCard(card){
+		console.log('checking car: ' + card);
 		if(tableCard.length === 0){
 			console.log('because first card');
 			return true;
@@ -313,9 +315,9 @@ body {
 	position:absolute;
 	left:12.5%;
 	top:25%;
-	z-index:2;,
-	background-color:white;
-
+	z-index:20;,
+	background-color:red;
+	border: 2px solid black;
 }
 .chooselocs{
 	width:20%;
@@ -326,6 +328,7 @@ body {
 	float:right;
 	border-style: solid;
 	border-width:1px;
+	background-color:white;
 }
 #ktroef{
 	width:75%;
