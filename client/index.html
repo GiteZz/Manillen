@@ -17,6 +17,8 @@ $(function(){
 	var zScore = [];
 
 	var socket = io();
+	
+	var viewer = false;
 
 	console.log("hey");
 	
@@ -75,6 +77,8 @@ $(function(){
 				return $("#card" + i.toString()).height()/2-20;
 			}
 		});
+	
+		
 		$("#cardBottom" + i.toString()).css({
 			height:function(){
 				return $("#card" + i.toString()).height()/2;
@@ -86,6 +90,63 @@ $(function(){
 			}
 		});
 	}
+	//"vCardTop1" class="vCardsTop"></div>
+			//<div id="vCardBottom1"
+	for(var i = 1; i < 5; i++){
+		$("#vCardBottom" + i.toString()).css({
+			height:function(){
+			return $("#vCard" + i.toString()).height()/2;
+			},
+			"width":"100%",
+			"text-align":"middle",
+			"white-space":"nowrap",
+			"vertical-align":"middle",
+			"font-size":function(){
+			return $("#vCard" + i.toString()).height()/2-20;
+			}
+		});
+		
+		$("#vCardTop" + i.toString()).css({
+			height:function(){
+			return $("#vCard" + i.toString()).height()/2;
+			},
+			"width":"100%",
+			"white-space":"nowrap",
+			"text-align":"middle",
+			"vertical-align":"middle",
+			"font-size":function(){
+			return $("#vCard" + i.toString()).height()/2-20;
+			}
+		});
+		
+		$("#playingcardtop" + i.toString()).css({
+			height:function(){
+			return $("#playingcard" + i.toString()).height()/2;
+			},
+			"width":"100%",
+			"white-space":"nowrap",
+			"text-align":"middle",
+			"vertical-align":"middle",
+			"font-size":function(){
+			return $("#playingcard" + i.toString()).height()/2-20;
+			}
+		});
+		
+		$("#playingcardbottom" + i.toString()).css({
+			height:function(){
+			return $("#playingcard" + i.toString()).height()/2;
+			},
+			"width":"100%",
+			"white-space":"nowrap",
+			"text-align":"middle",
+			"vertical-align":"middle",
+			"font-size":function(){
+			return $("#playingcard" + i.toString()).height()/2-20;
+			}
+		});
+	}
+	
+	
 	
 	socket.on('id',function(data){
 		console.log(data.id);
@@ -146,8 +207,6 @@ $(function(){
 	});
 	
 	
-	
-
 	function addCards(){
 		for(var i = 0; i < 8; i++){
 			console.log('adding a card');
@@ -176,24 +235,37 @@ $(function(){
 	});
 	
 	socket.on('pCard',function(data){
-		console.log('new card on table');
-	
+		//document.getElementById(id)
 		var c = data.charAt(0);
 		var i = tableCard.length + 1;
+		console.log('new card on table: ' + data + "  viewer? " + viewer);
+		var divString = "";
+		
+		
+		if(!viewer){
+			divString = "playingcardtop";
+			$("#playingcardbottom" + i.toString()).text(data.slice(1));
+		}else{
+			divString = "vCardTop";
+			$("#vCardBottom" + i.toString()).text(data.slice(1));
+		}
+	
+		var id = divString + i.toString();
+		console.log('this card:  ' + id);
 		if(c === "P"){
-			$("#playingcardtop" + i.toString()).text('\u2660');
+			$(document.getElementById(id)).text('\u2660');
 		}
 		if(c === "H"){
-			$("#playingcardtop" + i.toString()).text('\u2665');
+			$(document.getElementById(id)).text('\u2665');
 		}
 		if(c === "K"){
-			$("#playingcardtop" + i.toString()).text('\u2666');
+			$(document.getElementById(id)).text('\u2666');
 		}
 		if(c === "C"){
-			$("#playingcardtop" + i.toString()).text('\u2663');
+			$(document.getElementById(id)).text('\u2663');
 		}
 		
-		$("#playingcardbottom" + i.toString()).text(data.slice(1));
+		//$("#playingcardbottom" + i.toString()).text(data.slice(1));
 		tableCard.push(data);
 	});
 	
@@ -214,11 +286,7 @@ $(function(){
 		//$('#wiederScore').text(toString(data.w));
 		//$('#ziederScore').text(toString(data.z));
 	});
-	/*
-	socket.on('viewer'){
-		$('#viewerBox').ccs({"visibility":"visible"});
-	}
-	*/
+
 	
 	$(document).on('click', '.chooselocs', function(){
 		socket.emit('aLocation', this.id);
@@ -228,10 +296,12 @@ $(function(){
 		});
 		
 		if(this.id === "Viewer"){
-			
+			console.log('choose viewer');
+			$('#viewerBox').css({"visibility":"visible"});
+			$('#troefLoc').css({"z-index":"51"});
+			viewer = true;
 		}
 	});
-	
 	
 	
 	$(document).on('click', '.cardTops, .cardBottoms', function(){
@@ -444,13 +514,14 @@ background-color:green;
 }
 
 #viewerBox{
-visibility:hidden;
-position:absolute;
-top:0;
-left:0;
-width:100%;
-color:darkgreen;
-height:100%;
+	visibility:hidden;
+	position:absolute;
+	top:0;
+	left:0;
+	width:100%;
+	background-color:darkgreen;
+	height:100%;
+	z-index:50;
 }
 #vCardWrapper{
 	width:75%;
@@ -465,6 +536,7 @@ height:100%;
 	margin-left:1%;
 	margin-top:1%;
 	background-color:white;
+	float:left;
 }
 </style>
 </head>
@@ -472,20 +544,20 @@ height:100%;
 <div id="viewerBox">
 	<div id="vCardWrapper">
 		<div id="vCard1" class="vCards">
-			<div id="vCardTop1"></div>
-			<div id="vCardBottom1"></div>
+			<div id="vCardTop1" class="vCardsTop"></div>
+			<div id="vCardBottom1" class="vCardsBottom"></div>
 		</div>
 		<div id="vCard2" class="vCards">
-			<div id="vCardTop2"></div>
-			<div id="vCardBottom2"></div>
+			<div id="vCardTop2" class="vCardsTop"></div>
+			<div id="vCardBottom2" class="vCardsBottom"></div>
 		</div>
 		<div id="vCard3" class="vCards">
-			<div id="vCardTop3"></div>
-			<div id="vCardBottom3"></div>
+			<div id="vCardTop3" class="vCardsTop"></div>
+			<div id="vCardBottom3" class="vCardsBottom"></div>
 		</div>
 		<div id="vCard4" class="vCards">
-			<div id="vCardTop4"></div>
-			<div id="vCardBottom4"></div>
+			<div id="vCardTop4" class="vCardsTop"></div>
+			<div id="vCardBottom4" class="vCardsBottom"></div>
 		</div>
 	</div>
 </div>

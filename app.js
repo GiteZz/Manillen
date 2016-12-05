@@ -61,7 +61,9 @@ io.sockets.on('connection',function(socket){
 		if(data === "Viewer"){
 			SOCKET_LIST_WATCHERS.push(socket);
 			isPlayer = false;
+			console.log('new viewer');
 		}else{
+			console.log('new player');
 			isPlayer = true;
 			player = new Array();
 			
@@ -85,20 +87,18 @@ io.sockets.on('connection',function(socket){
 			}
 			
 			console.log('Location recieved' + data);
-			console.log(PLAYER_LIST)
+			console.log(PLAYER_LIST);
 		}
 		
 	});
 	
-	
-	var temp = socket.id;
 
 	socket.on('disconnect',function(){
 		if(isPlayer){
 			avIDs.push(socket.id);
 			SOCKET_LIST_PLAYERS.splice(socket.id,1);
 		}else{
-			
+			SOCKET_LIST_WATCHERS.splice(SOCKET_LIST_WATCHERS.indexOf(socket),1);
 		}
 		
 	});
@@ -114,6 +114,9 @@ io.sockets.on('connection',function(socket){
 		for(var i in SOCKET_LIST_PLAYERS){
 			SOCKET_LIST_PLAYERS[i].emit('eTroef',troef);
 		}
+		for(var i in SOCKET_LIST_WATCHERS){
+			SOCKET_LIST_WATCHERS[i].emit('eTroef',troef);
+		}
 		currentPlayer = orStarterPlayer + 1;
 		startPlayer = orStarterPlayer + 1;
 		orStarterPlayer++;
@@ -127,6 +130,9 @@ io.sockets.on('connection',function(socket){
 		
 		for(var i in SOCKET_LIST_PLAYERS){
 			SOCKET_LIST_PLAYERS[i].emit('pCard',cur_car);
+		}
+		for(var i in SOCKET_LIST_WATCHERS){
+			SOCKET_LIST_WATCHERS[i].emit('pCard',cur_car);
 		}
 		
 		if(current_card.length !== 4){
