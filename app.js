@@ -12,7 +12,8 @@ console.log('Server Started!');
 
 var io = require('socket.io')(serv,{});
 
-var SOCKET_LIST = [];
+var SOCKET_LIST_PLAYERS = [];
+var SOCKET_LIST_WATCHERS = [];
 var PLAYER_LIST = [1,2,3,4];
 var playInit = 0;
 var avIDs = [0,1,2,3];
@@ -42,40 +43,64 @@ var zScore = 0;
 
 var plays = [];
 
+var aConnections = 0;
+
 io.sockets.on('connection',function(socket){
+	var player;
+	var isPlayer;
 	console.log('socket connection!');
-	var player = new Array();
+	aConnections++;
 	
-	socket.id = avIDs[0];
-	avIDs.splice(0,1);
-	SOCKET_LIST[socket.id] = socket;
 	
-	player.push(socket.id);
-	
-	//ask and rec location
 	socket.emit('qLocation',avLOC);
+
+	//ask and rec location
+	
 	socket.on('aLocation',function(data){
-		var rec_loc = avLOC.indexOf(parseInt(data.charAt(1)));
-		PLAYER_LIST[rec_loc] = player;
 		
-		playInit++;
-		
-		if(avIDs.length == 0 && playInit==4){
+		if(data === "Viewer"){
+			SOCKET_LIST_WATCHERS.push(socket);
+			isPlayer = false;
+		}else{
+			isPlayer = true;
+			player = new Array();
 			
-			startPlayer = 0;
-			startGame();
+			socket.id = avIDs[0];
+			avIDs.splice(0,1);
+			
+			SOCKET_LIST_PLAYERS[socket.id] = socket;
+			player.push(socket.id);
+			
+			
+			var rec_loc = avLOC.indexOf(parseInt(data.charAt(1)));
+			
+			PLAYER_LIST[rec_loc] = player;
+			
+			playInit++;
+			
+			if(avIDs.length == 0 && playInit==4){
+				
+				startPlayer = 0;
+				startGame();
+			}
+			
+			console.log('Location recieved' + data);
+			console.log(PLAYER_LIST)
 		}
 		
-		console.log('Location recieved' + data);
-		console.log(PLAYER_LIST)
 	});
 	
 	
 	var temp = socket.id;
 
 	socket.on('disconnect',function(){
-		avIDs.push(socket.id);
-		SOCKET_LIST.splice(socket.id,1);
+		if(isPlayer){
+			avIDs.push(socket.id);
+			SOCKET_LIST_PLAYERS.splice(socket.id,1);
+		}else{
+			
+		}
+		
 	});
 	
 	//Starts the game
@@ -86,8 +111,8 @@ io.sockets.on('connection',function(socket){
 		troef = PLAYER_LIST[orStarterPlayer][1][data].charAt(0);
 		console.log(troef);
 		
-		for(var i in SOCKET_LIST){
-			SOCKET_LIST[i].emit('eTroef',troef);
+		for(var i in SOCKET_LIST_PLAYERS){
+			SOCKET_LIST_PLAYERS[i].emit('eTroef',troef);
 		}
 		currentPlayer = orStarterPlayer + 1;
 		startPlayer = orStarterPlayer + 1;
@@ -100,8 +125,8 @@ io.sockets.on('connection',function(socket){
 		var cur_car = PLAYER_LIST[currentPlayer][1][data];
 		current_card.push(cur_car);
 		
-		for(var i in SOCKET_LIST){
-			SOCKET_LIST[i].emit('pCard',cur_car);
+		for(var i in SOCKET_LIST_PLAYERS){
+			SOCKET_LIST_PLAYERS[i].emit('pCard',cur_car);
 		}
 		
 		if(current_card.length !== 4){
@@ -154,8 +179,8 @@ io.sockets.on('connection',function(socket){
 			
 			
 			setTimeout(function(){
-				for(var i in SOCKET_LIST){
-					SOCKET_LIST[i].emit('clearPlayCards');
+				for(var i in SOCKET_LIST_PLAYERS){
+					SOCKET_LIST_PLAYERS[i].emit('clearPlayCards');
 				}
 			},1000);
 			
@@ -203,8 +228,8 @@ io.sockets.on('connection',function(socket){
 					if(cs > 0)zScore += cs;
 				}
 				
-				for(var i in SOCKET_LIST){
-					SOCKET_LIST[i].emit('scores',{
+				for(var i in SOCKET_LIST_PLAYERS){
+					SOCKET_LIST_PLAYERS[i].emit('scores',{
 						w:wScore,
 						z:zScore
 					});
@@ -218,7 +243,7 @@ io.sockets.on('connection',function(socket){
 		
 		
 	});
-});
+	});
 
 function sendRandom(){
 
@@ -239,8 +264,10 @@ function sendRandom(){
 	
 	for(var i = 0; i< 4; i++){
 		var c = cards.slice(i*8,(i+1)*8);
+		
+		c.sort();
 		PLAYER_LIST[i].push(c);
-		SOCKET_LIST[PLAYER_LIST[i][0]].emit('sendCards',cards.slice(i*8,(i+1)*8));
+		SOCKET_LIST_PLAYERS[PLAYER_LIST[i][0]].emit('sendCards',c);
 	}
 	
 
@@ -259,8 +286,8 @@ function shuffle(a) {
 
 /*
 setInterval(function(){
-	for(var i in SOCKET_LIST){
-		var socket = SOCKET_LIST[i];
+	for(var i in SOCKET_LIST_PLAYERS){
+		var socket = SOCKET_LIST_PLAYERS[i];
 		
 		socket.emit('id',{
 			id:socket.id
@@ -270,18 +297,18 @@ setInterval(function(){
 */
 
 function startGame(){
-	for(var i in SOCKET_LIST){
-		SOCKET_LIST[i].emit('gameStarted');
+	for(var i in SOCKET_LIST_PLAYERS){
+		SOCKET_LIST_PLAYERS[i].emit('gameStarted');
 	}
 	sendRandom();
 
 	console.log("game_started!");
 
-	SOCKET_LIST[PLAYER_LIST[orStarterPlayer][0]].emit('qTroef');
+	SOCKET_LIST_PLAYERS[PLAYER_LIST[orStarterPlayer][0]].emit('qTroef');
 	currentPlayer = orStarterPlayer;
 }
 
 function play(){
 	console.log('play command issued, with currentplayer:  ' + currentPlayer);
-	SOCKET_LIST[PLAYER_LIST[currentPlayer][0]].emit('play');
+	SOCKET_LIST_PLAYERS[PLAYER_LIST[currentPlayer][0]].emit('play');
 }

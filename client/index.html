@@ -13,6 +13,8 @@ $(function(){
 	var troef;
 	var cards = [];
 	var location;
+	var wScore = [];
+	var zScore = [];
 
 	var socket = io();
 
@@ -116,6 +118,7 @@ $(function(){
 		for(var i in data){
 			$("#locationask").append("<div id=\"L" + i +"\" class=\"chooselocs\">" + data[i] + "</div>");
 		}
+		$("#locationask").append("<div id=\"Viewer\" class=\"chooselocs\">Viewer</div>");
 	});
 	
 	socket.on('play',function(){
@@ -123,6 +126,7 @@ $(function(){
 		$("#your_turn").css({'visibility':'visible'});
 		playBool = true;
 	});
+	
 	
 	socket.on('eTroef',function(data){
 		console.log('recieving troef');
@@ -202,10 +206,19 @@ $(function(){
 	});
 	
 	socket.on('scores',function(data){
-		$('#wiederScore').text(toString(data.w));
-		$('#ziederScore').text(toString(data.z));
+		console.log(data.w);
+		var ht = "<tr><th>" + data.w + "</th><th>" + data.z + "</th></tr>"
+		$('#scoreTable').append(ht);
+		wScore += toInt(data.w);
+		zScore += toInt(data.z);
+		//$('#wiederScore').text(toString(data.w));
+		//$('#ziederScore').text(toString(data.z));
 	});
-	
+	/*
+	socket.on('viewer'){
+		$('#viewerBox').ccs({"visibility":"visible"});
+	}
+	*/
 	
 	$(document).on('click', '.chooselocs', function(){
 		socket.emit('aLocation', this.id);
@@ -213,6 +226,10 @@ $(function(){
 		$("#locationask").css({
 			"visibility":"hidden"
 		});
+		
+		if(this.id === "Viewer"){
+			
+		}
 	});
 	
 	
@@ -320,7 +337,7 @@ body {
 	border: 2px solid black;
 }
 .chooselocs{
-	width:20%;
+	width:15%;
 	height:20%;
 	margin-top:25%;
 	margin-left:2%;
@@ -397,7 +414,7 @@ body {
 	position:absolute;
 	top:0;
 	left:0;
-	height:10vw;
+	height:100%;
 	width:10vw;
 	z-index:50;
 }
@@ -425,18 +442,58 @@ table tr th:last-child {
 body{
 background-color:green;
 }
+
+#viewerBox{
+visibility:hidden;
+position:absolute;
+top:0;
+left:0;
+width:100%;
+color:darkgreen;
+height:100%;
+}
+#vCardWrapper{
+	width:75%;
+	height:75%;
+	position:absolute;
+	left:12.5%;
+	top:12.5%;
+}
+.vCards{
+	width:23%;
+	height:100%;
+	margin-left:1%;
+	margin-top:1%;
+	background-color:white;
+}
 </style>
 </head>
 <body>
+<div id="viewerBox">
+	<div id="vCardWrapper">
+		<div id="vCard1" class="vCards">
+			<div id="vCardTop1"></div>
+			<div id="vCardBottom1"></div>
+		</div>
+		<div id="vCard2" class="vCards">
+			<div id="vCardTop2"></div>
+			<div id="vCardBottom2"></div>
+		</div>
+		<div id="vCard3" class="vCards">
+			<div id="vCardTop3"></div>
+			<div id="vCardBottom3"></div>
+		</div>
+		<div id="vCard4" class="vCards">
+			<div id="vCardTop4"></div>
+			<div id="vCardBottom4"></div>
+		</div>
+	</div>
+</div>
 <div id="scoreCard">
 	<table id="scoreTable">
 		<tr id="toptr">
 			<th>Wieder</th>
 			<th>Zieder</th>
-		</tr>
-		<tr id="bottomtr">
-			<th id="wiederScore">0</th>
-			<th id="ziederScore">0</th>
 		</tr>
 	</table>
 </div>
