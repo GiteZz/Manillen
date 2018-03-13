@@ -56,11 +56,13 @@ $(function(){
 			},
 			width:function(){
 				return $("#bottom").width()/8 -.01*$("#bottom").width();
-			}
-			,
+			},
 			"background-color":"white",
 			"white-space":"nowrap",
-			"margin-top":"30px"
+			"margin-top":"30px",
+			"border-radius":function(){
+				return $("#bottom").width()/80;
+			}
 		});
 
 		$("#card" + i.toString()).append("<div align=\"center\" id=\"cardTop" + i +"\" class=\"cardTops\"></div>");
@@ -144,6 +146,14 @@ $(function(){
 			return $("#playingcard" + i.toString()).height()/2-20;
 			}
 		});
+		
+		$("#playingcard" + i.toString()).css({
+			"border-radius":function(){
+				return $("#bottom").width()/80;
+			}
+		});
+		
+		//playingcard
 	}
 	
 	
@@ -157,10 +167,18 @@ $(function(){
 		console.log('game started!');
 	});
 	
+	//Recieve cards from server
 	socket.on('sendCards',function(data){
 		for(var i in data){
 			cards.push(data[i]);
 		}
+		
+		cards.sort(function(a,b) {
+			var value = (a[0].charCodeAt() - b[0].charCodeAt())*20;
+			value += get_cardvalue(a)-get_cardvalue(b);
+			return value;
+		});
+		
 		console.log('recieving cards' + cards);
 		addCards();
 	});
@@ -176,19 +194,22 @@ $(function(){
 	socket.on('qLocation',function(data){
 		console.log('asked for location');
 		$("#locationask").css({'visibility':'visibility'});
+		$("#locationask").empty();
 		for(var i in data){
-			$("#locationask").append("<div id=\"L" + i +"\" class=\"chooselocs\">" + data[i] + "</div>");
+			
+			$("#locationask").append("<div id=\"L" + data[i] +"\" class=\"chooselocs\">" + data[i] + "</div>");
 		}
 		$("#locationask").append("<div id=\"Viewer\" class=\"chooselocs\">Viewer</div>");
 	});
 	
+	//Allowed to play
 	socket.on('play',function(){
-		console.log('time to play');
+		console.log('Allowed to play');
 		$("#your_turn").css({'visibility':'visible'});
 		playBool = true;
 	});
 	
-	
+	//Recieve troef from emit
 	socket.on('eTroef',function(data){
 		console.log('recieving troef');
 		troef = data;
@@ -228,6 +249,34 @@ $(function(){
 			$("#cardBottom" + i.toString()).text(cards[i].slice(1));
 		}
 	}
+	
+	function get_cardvalue(a){
+		switch(a.substring(1)) {
+			case "V":
+				return 1;
+			case "D":
+				return 2;
+			case "R":
+				return 3;
+			case "A":
+				return 4;
+			case "10":
+				return 5;
+			default:
+				return parseInt(a.substring(1)) - 9;
+		}
+	}
+	
+	socket.on('activateCards',function(){
+		for(var i = 0; i < 8; i++){
+			$("#cardTop" + i.toString()).css({
+				"background-color":"white"
+			});
+			$("#cardBottom" + i.toString()).css({
+				"background-color":"white"
+			});
+		}
+	});
 	
 	
 	$("#but").click(function(){
@@ -277,20 +326,26 @@ $(function(){
 		tableCard = [];
 	});
 	
+	//Show scores
 	socket.on('scores',function(data){
 		console.log(data.w);
 		var ht = "<tr><th>" + data.w + "</th><th>" + data.z + "</th></tr>"
 		$('#scoreTable').append(ht);
-		wScore += toInt(data.w);
-		zScore += toInt(data.z);
+		//wScore += toInt(data.w);
+		//zScore += toInt(data.z);
 		//$('#wiederScore').text(toString(data.w));
 		//$('#ziederScore').text(toString(data.z));
 	});
 
 	
+	//Chose location, only available in begining
 	$(document).on('click', '.chooselocs', function(){
-		socket.emit('aLocation', this.id);
-		location = parseInt(this.id.charAt(1));
+	
+	
+		
+		
+		
+		
 		$("#locationask").css({
 			"visibility":"hidden"
 		});
@@ -300,29 +355,39 @@ $(function(){
 			$('#viewerBox').css({"visibility":"visible"});
 			$('#troefLoc').css({"z-index":"51"});
 			viewer = true;
+			socket.emit('aLocation', -1);
+		}else{
+			location = parseInt(this.id.charAt(1));
+			socket.emit('aLocation', location);
 		}
 	});
 	
-	
-	$(document).on('click', '.cardTops, .cardBottoms', function(){
+	//Click on card, only valid if choosing troef or playing
+	$(document).on('click', '.cardTops, .cardBottoms, .cards', function(){
 	
 		console.log('Card clicked');
+		
+		//if troefBool===True, player is allowed to choose troef.
 		if(troefBool){
 			console.log('sending troef');
 			var index = parseInt(this.id.charAt(this.id.length-1));
-			socket.emit('aTroef', index);
+			socket.emit('aTroef', cards[index]);
 			$("#ktroef").css({'visibility':'hidden'});
 			troefBool = false;
 		}
 		
+		//Player is allow to play
 		if(playBool){		
 			var index = parseInt(this.id.charAt(this.id.length-1));
 			console.log('sending card with index: ' + index);
 			console.log('current cards:  ' + cards);
 			if(checkCard(cards[index])){
 			
+				
+				//Send to server
+				socket.emit('aPlay', cards[index]);
 				cards[index] = "N1";
-				socket.emit('aPlay', index);
+				//Clear board of card
 				$("#your_turn").css({'visibility':'hidden'});
 				playBool = false;
 				
@@ -342,37 +407,44 @@ $(function(){
 		}
 	});
 	
+	
+	//Not all cards are valid, check them here
 	function checkCard(card){
 		console.log('checking car: ' + card);
+		
+		//First card on table, everything valid
 		if(tableCard.length === 0){
 			console.log('because first card');
 			return true;
 		} 
+		
+		//Get type
 		var cardType = card.charAt(0);
-		var deckContainsCC = false;
-		var deckConTainsTR = false;
+		var deckContainsCC = false; //True if deck contains card with same type as starting card
+		var deckConTainsTR = false; //True if deck contains card with troef
 		
 		for(var i in cards){
 			if(cards[i].charAt(0) === tableCard[0].charAt(0))deckContainsCC = true;
 			if(cards[i].charAt(0) === troef)deckConTainsTR = true;
 		}
 	
-		
+		//Right type, should always follow
 		if(cardType === tableCard[0].charAt(0)){
 			console.log('because right type');
 			return true;
 		} 
+		//Should follow and does not follow
 		if(cardType !== tableCard[0].charAt(0) && deckContainsCC){
 			console.log('false because not right type and deck contains');
 			return false;
 		}
-		
+		//Does not follow but should buy
 		if(cardType !== tableCard[0].charAt(0) && cardType!==troef && deckConTainsTR){
 			console.log('false bacause not troef deck contains troef');
 			return false;
 		} 
 		//if(cardType !== tableCard[0].charAt(0) && cardType!==troef) return false;
-		
+		//TODO check if teammate has bougth allready
 		return true;
 		
 		
@@ -397,14 +469,11 @@ body {
 }
 
 #locationask{
-	width:75%;
-	height:50%;
+	width:100%;
+	height:100%;
 	position:absolute;
-	left:12.5%;
-	top:25%;
-	z-index:20;,
+	z-index:60;
 	background-color:red;
-	border: 2px solid black;
 }
 .chooselocs{
 	width:15%;
@@ -484,7 +553,7 @@ body {
 	position:absolute;
 	top:0;
 	left:0;
-	height:100%;
+	height:50%;
 	width:10vw;
 	z-index:50;
 }

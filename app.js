@@ -14,10 +14,13 @@ var io = require('socket.io')(serv,{});
 
 var SOCKET_LIST_PLAYERS = [];
 var SOCKET_LIST_WATCHERS = [];
+var SOCKET_LIST_NOT_CHOSEN = [];
 var PLAYER_LIST = [1,2,3,4];
 var playInit = 0;
+
+//Play IDs
 var avIDs = [0,1,2,3];
-var avLOC = [3,2,1,0];
+var avLOC = [0,1,2,3];
 var currentPlayer;
 var troefBool = false;
 var troef;
@@ -48,22 +51,24 @@ var aConnections = 0;
 io.sockets.on('connection',function(socket){
 	var player;
 	var isPlayer;
+	var rec_loc;
 	console.log('socket connection!');
 	aConnections++;
 	
-	
+	//keep all socket to use to update available locations
+	SOCKET_LIST_NOT_CHOSEN.push(socket);
+	//Ask for location on table
 	socket.emit('qLocation',avLOC);
 
-	//ask and rec location
 	
+	//When opening app, the user has the option to chose to view or to watch, both get a separate socket_list
 	socket.on('aLocation',function(data){
 		
-		if(data === "Viewer"){
+		if(data === -1){
 			SOCKET_LIST_WATCHERS.push(socket);
 			isPlayer = false;
 			console.log('new viewer');
 		}else{
-			console.log('new player');
 			isPlayer = true;
 			player = new Array();
 			
@@ -73,8 +78,10 @@ io.sockets.on('connection',function(socket){
 			SOCKET_LIST_PLAYERS[socket.id] = socket;
 			player.push(socket.id);
 			
+			rec_loc = data;
 			
-			var rec_loc = avLOC.indexOf(parseInt(data.charAt(1)));
+			//Remove location from available locations
+			avLOC.splice(avLOC.indexOf(rec_loc),1);
 			
 			PLAYER_LIST[rec_loc] = player;
 			
@@ -86,8 +93,14 @@ io.sockets.on('connection',function(socket){
 				startGame();
 			}
 			
-			console.log('Location recieved' + data);
+			console.log('New player on location: ' + data);
 			console.log(PLAYER_LIST);
+			
+			SOCKET_LIST_NOT_CHOSEN.splice(SOCKET_LIST_NOT_CHOSEN.indexOf(socket),1);
+			for(var i in SOCKET_LIST_NOT_CHOSEN){
+				SOCKET_LIST_NOT_CHOSEN[i].emit('qLocation',avLOC);
+			}
+			
 		}
 		
 	});
@@ -95,6 +108,7 @@ io.sockets.on('connection',function(socket){
 
 	socket.on('disconnect',function(){
 		if(isPlayer){
+			avLOC.push(rec_loc);
 			avIDs.push(socket.id);
 			SOCKET_LIST_PLAYERS.splice(socket.id,1);
 		}else{
@@ -104,12 +118,12 @@ io.sockets.on('connection',function(socket){
 	});
 	
 	//Starts the game
-	
+	//Aswer from troef
 	socket.on('aTroef',function(data){
 		console.log('new troef chosen' + data);
 		troefBool = true;
-		troef = PLAYER_LIST[orStarterPlayer][1][data].charAt(0);
-		console.log(troef);
+		troef = data.charAt(0);
+		console.log('Troef is gekozen: ' + troef);
 		
 		for(var i in SOCKET_LIST_PLAYERS){
 			SOCKET_LIST_PLAYERS[i].emit('eTroef',troef);
@@ -125,7 +139,9 @@ io.sockets.on('connection',function(socket){
 	});
 	
 	socket.on('aPlay',function(data){
-		var cur_car = PLAYER_LIST[currentPlayer][1][data];
+		var cur_car = data;
+		
+		//var cur_car = PLAYER_LIST[currentPlayer][1][data];
 		current_card.push(cur_car);
 		
 		for(var i in SOCKET_LIST_PLAYERS){
@@ -141,6 +157,7 @@ io.sockets.on('connection',function(socket){
 			play();
 		}else{
 			console.log('plays equal to 4, determine score');
+			console.log('cards on table: ' + current_card);
 			rounds++;
 			var troef_loc = [];
 			var winner = 0;
@@ -167,6 +184,7 @@ io.sockets.on('connection',function(socket){
 					}
 				}
 			}else{
+				console.log('troef on table, amount: ' + troef_loc.length)
 				if(troef_loc.length === 1){
 					winner = troef_loc[0];
 				}else{
@@ -223,26 +241,42 @@ io.sockets.on('connection',function(socket){
 				console.log('rounds not equal to 8');
 				play();
 			}else{
+				var wTScore = 0;
 				console.log('rounds equal to 8');
+				console.log('Wieder: ' + wiederKaarten);
+				console.log('Zieder: ' + ziederKaarten);
 				for(var i in wiederKaarten){
 					var cs = cardList.indexOf(wiederKaarten[i].slice(1)) - 2;
-					if(cs > 0)wScore += cs;
+					if(cs > 0)wTScore += cs;
 				}
+				wTScore-=30;
 				
-				for(var i in ziederKaarten){
-					var cs = cardList.indexOf(ziederKaarten[i].slice(1)) - 2;
-					if(cs > 0)zScore += cs;
-				}
-				
-				for(var i in SOCKET_LIST_PLAYERS){
+				if(wTScore>0){
+					for(var i in SOCKET_LIST_PLAYERS){
+						SOCKET_LIST_PLAYERS[i].emit('scores',{
+							w:wTScore,
+							z:0
+						});
+						wScore+=wTScore;
+					}
+				}else{
+					for(var i in SOCKET_LIST_PLAYERS){
 					SOCKET_LIST_PLAYERS[i].emit('scores',{
-						w:wScore,
-						z:zScore
+						w:0,
+						z:-wTScore
 					});
+					zScore-=wTScore;
+					}
 				}
+				
+				
 				
 				wiederKaarten = [];
 				ziederKaarten = [];
+				setTimeout(function(){
+					startGame();
+				},1000);
+				
 			}
 			
 		}
@@ -251,9 +285,15 @@ io.sockets.on('connection',function(socket){
 	});
 	});
 
+	
+
 function sendRandom(){
 
-	// K P H C
+	
+	// K - koeken
+	// P - piekn
+	// H - harten
+	// C - klaver
 	//7 8 9 V D R A 10
 	var cards = ["K7","K8","K9","KV","KD","KR","KA","K10",
 				 "C7","C8","C9","CV","CD","CR","CA","C10",
@@ -305,6 +345,7 @@ setInterval(function(){
 function startGame(){
 	for(var i in SOCKET_LIST_PLAYERS){
 		SOCKET_LIST_PLAYERS[i].emit('gameStarted');
+		SOCKET_LIST_PLAYERS[i].emit('activateCards');
 	}
 	sendRandom();
 
